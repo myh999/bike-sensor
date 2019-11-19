@@ -113,6 +113,7 @@ void main(void)
                 keyVal = getKeypadValue(outputRow, COL_PIN_1);
                 calibrate_value = update_calibrate_value(keyVal, calibrate_value);
                 GPIO_setOutputHighOnPin(LED2_PORT, LED2_PIN);
+                __delay_cycles(200);
             }
             else if (col2 == 1 && keypadState == 0)
             {
@@ -120,6 +121,7 @@ void main(void)
                 keyVal = getKeypadValue(outputRow, COL_PIN_2);
                 calibrate_value = update_calibrate_value(keyVal, calibrate_value);
                 GPIO_setOutputHighOnPin(LED2_PORT, LED2_PIN);
+                __delay_cycles(200);
             }
             else if (col3 == 1 && keypadState == 0)
             {
@@ -127,11 +129,13 @@ void main(void)
                 keyVal = getKeypadValue(outputRow, COL_PIN_3);
                 calibrate_value = update_calibrate_value(keyVal, calibrate_value);
                 GPIO_setOutputHighOnPin(LED2_PORT, LED2_PIN);
+                __delay_cycles(200);
             }
             else if (col1 == 0 && col2 == 0 && col3 == 0 && keypadState == 1)
             {
                 keypadState = 0;
                 GPIO_setOutputLowOnPin(LED2_PORT, LED2_PIN);
+                __delay_cycles(200);
             }
 
             GPIO_setOutputLowOnPin(ROW_PORT, outputRow);
