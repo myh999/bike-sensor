@@ -56,7 +56,14 @@ void main(void)
     // Initializations - see functions for more detail
     Init_GPIO(); //Sets all pins to output low as a default
     Init_LCD();  //Sets up the LaunchPad LCD display
-    Init_Clock();
+    Init_Clock(); //sets up system clocks
+    Init_UART(); //Sets up an echo over a COM port
+    Init_ADC();     //Sets up the ADC to sample
+    Init_Timer();
+    Init_interrupt();
+    // PMM_unlockLPM5();
+    init_inecho();
+    __enable_interrupt();
 
     /*
      * The MSP430 MCUs have a variety of low power modes. They can be almost
@@ -144,10 +151,10 @@ void main(void)
         }
 
         GPIO_setOutputLowOnPin(ROW_PORT, outputRow);
-        calibrate(
-        // Mode 2
+        // calibrate();
+        // Mode 2 User mode
         while (mode == 1) {
-
+          //Will need to start both rear and front
         }
     }
 }
@@ -175,6 +182,99 @@ void calibrate(long value)
     ref = value;
     ref_distance = fetch_data();
     calibrated = true;
+}
+
+void front_sensor(){
+  GPIO_setAsOutputPin(GPIO_PORT_P5,GPIO_PIN0); //Will need to change the pins to be the ones we used
+  GPIO_setAsOutputPin(GPIO_PORT_P5,GPIO_PIN2);
+  GPIO_setOutputLowOnPin(GPIO_PORT_P5,GPIO_PIN0);
+  GPIO_setOutputLowOnPin(GPIO_PORT_P5,GPIO_PIN2);
+  GPIO_setAsInputPin(GPIO_PORT_P5,GPIO_PIN0);
+  GPIO_setAsInputPin(GPIO_PORT_P5,GPIO_PIN2);
+  GPIO_setOutputHighOnPin(GPIO_PORT_P1, GPIO_PIN6);
+ __delay_cycles(1);
+  GPIO_setOutputLowOnPin(GPIO_PORT_P1, GPIO_PIN6);
+ Timer_A_clear(TIMER_A1_BASE);
+ while(GPIO_getInputPinValue(GPIO_PORT_P5,GPIO_PIN2) == GPIO_INPUT_PIN_LOW);        //goes ahead after echo is low
+ Timer_A_startCounter(TIMER_A1_BASE,TIMER_A_CONTINUOUS_MODE);        //start timer
+ while(GPIO_getInputPinValue(GPIO_PORT_P5,GPIO_PIN2) == GPIO_INPUT_PIN_HIGH);        //goes ahead after echo is low;
+ Timer_A_stop(TIMER_A1_BASE);
+ volatile uint16_t time;
+ time = Timer_A_getCounterValue(TIMER_A1_BASE);
+ //Will display the distance
+ int distance = time / 58;
+showChar('0' + distance%10,pos6);
+ distance = distance/10;
+ showChar('0' + distance%10,pos5);
+ distance = distance/10;
+ showChar('0' + distance%10,pos4);
+ distance = distance/10;
+ showChar('0' + distance%10,pos3);
+ distance = distance/10;
+ showChar('0' + distance%10,pos2);
+ distance = distance/10;
+ showChar('0' + distance%10,pos1);
+ distance = 0;
+ //rear_LCDS(time);
+ time = 0;
+ __delay_cycles(16000);
+
+}
+
+void back_sensor(){
+  GPIO_setAsOutputPin(GPIO_PORT_P5,GPIO_PIN0);
+  GPIO_setAsOutputPin(GPIO_PORT_P5,GPIO_PIN2);
+  GPIO_setOutputLowOnPin(GPIO_PORT_P5,GPIO_PIN0);
+  GPIO_setOutputLowOnPin(GPIO_PORT_P5,GPIO_PIN2);
+  GPIO_setAsInputPin(GPIO_PORT_P5,GPIO_PIN0);
+  GPIO_setAsInputPin(GPIO_PORT_P5,GPIO_PIN2);
+  GPIO_setOutputHighOnPin(GPIO_PORT_P1, GPIO_PIN6);
+ __delay_cycles(1);
+  GPIO_setOutputLowOnPin(GPIO_PORT_P1, GPIO_PIN6);
+ Timer_A_clear(TIMER_A1_BASE);
+  while(GPIO_getInputPinValue(GPIO_PORT_P5,GPIO_PIN0) == GPIO_INPUT_PIN_LOW){        //goes ahead after echo is low
+    ; }
+ Timer_A_startCounter(TIMER_A1_BASE,TIMER_A_CONTINUOUS_MODE);        //start timer
+ while(GPIO_getInputPinValue(GPIO_PORT_P5,GPIO_PIN0) == GPIO_INPUT_PIN_HIGH){        //goes ahead after echo is low
+    ; }
+ Timer_A_startCounter(TIMER_A1_BASE,TIMER_A_CONTINUOUS_MODE);     // This is not supposed to be here
+ Timer_A_stop(TIMER_A1_BASE);
+ volatile uint16_t time;
+ time = Timer_A_getCounterValue(TIMER_A1_BASE);
+// time = test;
+ time = time / 58;
+ int distance = time;
+}
+
+void init_inecho(){
+  GPIO_setAsInputPin(GPIO_PORT_P5, GPIO_PIN0);
+  GPIO_setAsInputPin(GPIO_PORT_P5, GPIO_PIN2);
+  Timer_A_outputPWM(TIMER_A0_BASE, &param);
+}
+
+void run_sensors(){
+  int i = 0;
+ for(i = 0; i<10; i++)
+ front_sensor();
+ __delay_cycles(20);
+ for(i = 0; i<10; i++)
+ back_sensor();
+}
+
+void Init_Timer(void){
+  timer_param.clockSource = TIMER_A_CLOCKSOURCE_SMCLK;
+  timer_param.clockSourceDivider = TIMER_A_CLOCKSOURCE_DIVIDER_1;
+  timer_param.timerInterruptEnable_TAIE = TIMER_A_TAIE_INTERRUPT_DISABLE;
+  timer_param.timerClear = TIMER_A_DO_CLEAR;
+  //startTimer = true;
+  Timer_A_initContinuousMode(TIMER_A1_BASE, &timer_param);
+}
+
+void Init_interrupt(){
+    GPIO_setAsInputPinWithPullUpResistor(SW1_PORT, SW1_PIN);
+    GPIO_enableInterrupt(SW1_PORT, SW1_PIN);
+    GPIO_selectInterruptEdge(SW1_PORT, SW1_PIN, GPIO_HIGH_TO_LOW_TRANSITION);
+    GPIO_clearInterrupt(SW1_PORT, SW1_PIN);
 }
 
 void pulse_LED()
