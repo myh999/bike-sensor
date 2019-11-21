@@ -1,6 +1,13 @@
 #include "main.h"
 #include "driverlib/driverlib.h"
 #include "hal_LCD.h"
+#include <msp430.h>
+#include <string.h>
+#include "driverlib/driverlib.h"
+#include <stdlib.h>
+#include <msp430fr4133.h>
+#include "driverlib/timer_a.h"
+#include <stdio.h>
 
 /*
  * This project contains some code samples that may be useful.
@@ -8,33 +15,43 @@
  */
 
 char ADCState = 0;                                 //Busy state of the ADC
-int16_t ADCResult = 0;                             //Storage for the ADC conversion result
-int pos[6] = {pos6, pos5, pos4, pos3, pos2, pos1}; // to display to the LCD
+int16_t ADCResult = 0;                   //Storage for the ADC conversion result
+int pos[6] = { pos6, pos5, pos4, pos3, pos2, pos1 }; // to display to the LCD
 long ref = 0;
 long ref_distance = 0;
 int calibrated = 0;
-int mode = 0;
+int mode = 1;
+int index = 0;
+int beep_t[2] = { 50, 100 };
+unsigned int LED_t[3] = { 50, 100, 150 };
+unsigned int fV[3] = { 0, 0, 0 };
+int bV[3] = { 0, 0, 0 };
+int i = 1;
 
-#if defined(_TI_COMPILER_VERSION_) || defined(_IAR_SYSTEMS_ICC_)
-#pragma vector = PORT1_VECTOR
-__interrupt
-#elifdefined(_GNUC_)
-    __attribute__((interrupt(PORT1_VECTOR)))
-#endif
+unsigned int fD = 0;
+unsigned int bD = 0;
 
-    void
-    P1_ISR(void)
-{
-    __disable_interrupt();
-    __delay_cycles(10000); //Might not need this but put in here
-    //This will start timer on rising edge, stop on falling, then print counter value
-    // mode = 0;
+//#if defined(_TI_COMPILER_VERSION_) || defined(_IAR_SYSTEMS_ICC_)
+//#pragma vector = PORT1_VECTOR
+//__interrupt
+//#elifdefined(_GNUC_)
+//    __attribute__((interrupt(PORT1_VECTOR)))
+//#endif
 
-    GPIO_clearInterrupt(PB2_PORT, PB2_PIN);
-    __enable_interrupt();
-    // Need to get RTC working
-}
+/*
+ void
+ P1_ISR(void)
+ {
+ __disable_interrupt();
+ __delay_cycles(10000); //Might not need this but put in here
+ //This will start timer on rising edge, stop on falling, then print counter value
+ // mode = 0;
 
+ GPIO_clearInterrupt(PB2_PORT, PB2_PIN);
+ __enable_interrupt();
+ // Need to get RTC working
+ }
+ */
 void main(void)
 {
 
@@ -57,12 +74,12 @@ void main(void)
     Init_GPIO(); //Sets all pins to output low as a default
     Init_LCD();  //Sets up the LaunchPad LCD display
     Init_Clock(); //sets up system clocks
-    Init_UART(); //Sets up an echo over a COM port
-    Init_ADC();     //Sets up the ADC to sample
+//    Init_UART(); //Sets up an echo over a COM port
+//    Init_ADC();     //Sets up the ADC to sample
     Init_Timer();
-    Init_interrupt();
-    // PMM_unlockLPM5();
-    init_inecho();
+//    Init_interrupt();
+//     PMM_unlockLPM5();
+//    init_inecho();
     __enable_interrupt();
 
     /*
@@ -74,7 +91,7 @@ void main(void)
      * purposefully want to play with the power modes, just leave this command in.
      */
     PMM_unlockLPM5(); //Disable the GPIO power-on default high-impedance mode to activate previously configured port settings
-
+    //displayScrollText("WTF IS THIS123");
     //All done initializations - turn interrupts back on.
     //__enable_interrupt();
 
@@ -109,69 +126,76 @@ void main(void)
         //        __delay_cycles(16000);
 
         // Setup Mode
-        while (mode == 0)
-        {
-            col1 = GPIO_getInputPinValue(COL_PORT, COL_PIN_1);
-            col2 = GPIO_getInputPinValue(COL_PORT, COL_PIN_2);
-            col3 = GPIO_getInputPinValue(COL_PORT, COL_PIN_3);
-            if (col1 == 1 && keypadState == 0)
-            {
-                keypadState = 1;
-                keyVal = getKeypadValue(outputRow, COL_PIN_1);
-                calibrate_value = update_calibrate_value(keyVal, calibrate_value);
-                GPIO_setOutputHighOnPin(LED2_PORT, LED2_PIN);
-            }
-            else if (col2 == 1 && keypadState == 0)
-            {
-                keypadState = 1;
-                keyVal = getKeypadValue(outputRow, COL_PIN_2);
-                calibrate_value = update_calibrate_value(keyVal, calibrate_value);
-                GPIO_setOutputHighOnPin(LED2_PORT, LED2_PIN);
-            }
-            else if (col3 == 1 && keypadState == 0)
-            {
-                keypadState = 1;
-                keyVal = getKeypadValue(outputRow, COL_PIN_3);
-                calibrate_value = update_calibrate_value(keyVal, calibrate_value);
-                GPIO_setOutputHighOnPin(LED2_PORT, LED2_PIN);
-            }
-            else if (col1 == 0 && col2 == 0 && col3 == 0 && keypadState == 1)
-            {
-                keypadState = 0;
-                GPIO_setOutputLowOnPin(LED2_PORT, LED2_PIN);
-            }
+//        while (mode == 0)
+//        {
+//            col1 = GPIO_getInputPinValue(COL_PORT, COL_PIN_1);
+//            col2 = GPIO_getInputPinValue(COL_PORT, COL_PIN_2);
+//            col3 = GPIO_getInputPinValue(COL_PORT, COL_PIN_3);
+//            if (col1 == 1 && keypadState == 0)
+//            {
+//                keypadState = 1;
+//                keyVal = getKeypadValue(outputRow, COL_PIN_1);
+//                calibrate_value = update_calibrate_value(keyVal, calibrate_value);
+//                GPIO_setOutputHighOnPin(LED2_PORT, LED2_PIN);
+//                __delay_cycles(300000);
+//            }
+//            else if (col2 == 1 && keypadState == 0)
+//            {
+//                keypadState = 1;
+//                keyVal = getKeypadValue(outputRow, COL_PIN_2);
+//                calibrate_value = update_calibrate_value(keyVal, calibrate_value);
+//                GPIO_setOutputHighOnPin(LED2_PORT, LED2_PIN);
+//                __delay_cycles(300000);
+//            }
+//            else if (col3 == 1 && keypadState == 0)
+//            {
+//                keypadState = 1;
+//                keyVal = getKeypadValue(outputRow, COL_PIN_3);
+//                calibrate_value = update_calibrate_value(keyVal, calibrate_value);
+//                GPIO_setOutputHighOnPin(LED2_PORT, LED2_PIN);
+//                __delay_cycles(300000);
+//            }
+//            else if (col1 == 0 && col2 == 0 && col3 == 0 && keypadState == 1)
+//            {
+//                keypadState = 0;
+//                GPIO_setOutputLowOnPin(LED2_PORT, LED2_PIN);
+//                __delay_cycles(300000);
+//            }
+//
+//            GPIO_setOutputLowOnPin(ROW_PORT, outputRow);
+//            outputRow = getNextKeypadInputPin(outputRow);
+//            GPIO_setOutputHighOnPin(ROW_PORT, outputRow);
+//        }
 
-            GPIO_setOutputLowOnPin(ROW_PORT, outputRow);
-            outputRow = getNextKeypadInputPin(outputRow);
-            GPIO_setOutputHighOnPin(ROW_PORT, outputRow);
-        }
-
-        GPIO_setOutputLowOnPin(ROW_PORT, outputRow);
-        // calibrate();
+//        GPIO_setOutputLowOnPin(ROW_PORT, outputRow);
+//        calibrate(calibrate_value);
+        //displayScrollText("WTF IS THIS");
         // Mode 2 User mode
-        while (mode == 1) {
-          //Will need to start both rear and front
+        while (mode == 1)
+        {
+            //Will need to start both rear and front
+            run_sensor();
         }
     }
 }
 
-int update_calibrate_value(int input, int value) {
-    int final_value = value;
-    if (input == 10) {
-        final_value = 0;
-    } else if (input == 11) {
-        mode = 1;
-    } else {
-        final_value = value * 10 + input;
-    }
-    int i = 0;
-    while (value != 0) {
-        showChar((value % 10) + 48, i);
-        value /= 10;
-        i++;
-    }
-    return final_value;
-}
+//int update_calibrate_value(int input, int value) {
+//    int final_value = value;
+//    if (input == 10) {
+//        final_value = 0;
+//    } else if (input == 11) {
+//        mode = 1;
+//    } else {
+//        final_value = value * 10 + input;
+//    }
+//    int i = 0;
+//    while (value != 0) {
+//        showChar((value % 10) + 48, i);
+//        value /= 10;
+//        i++;
+//    }
+//    return final_value;
+//}
 
 void calibrate(long value)
 {
@@ -180,93 +204,160 @@ void calibrate(long value)
     calibrated = true;
 }
 
-void front_sensor(){
-  GPIO_setAsOutputPin(GPIO_PORT_P5,GPIO_PIN0); //Will need to change the pins to be the ones we used
-  GPIO_setAsOutputPin(GPIO_PORT_P5,GPIO_PIN2);
-  GPIO_setOutputLowOnPin(GPIO_PORT_P5,GPIO_PIN0);
-  GPIO_setOutputLowOnPin(GPIO_PORT_P5,GPIO_PIN2);
-  GPIO_setAsInputPin(GPIO_PORT_P5,GPIO_PIN0);
-  GPIO_setAsInputPin(GPIO_PORT_P5,GPIO_PIN2);
-  GPIO_setOutputHighOnPin(GPIO_PORT_P1, GPIO_PIN6);
- __delay_cycles(1);
-  GPIO_setOutputLowOnPin(GPIO_PORT_P1, GPIO_PIN6);
- Timer_A_clear(TIMER_A1_BASE);
- while(GPIO_getInputPinValue(GPIO_PORT_P5,GPIO_PIN2) == GPIO_INPUT_PIN_LOW);        //goes ahead after echo is low
- Timer_A_startCounter(TIMER_A1_BASE,TIMER_A_CONTINUOUS_MODE);        //start timer
- while(GPIO_getInputPinValue(GPIO_PORT_P5,GPIO_PIN2) == GPIO_INPUT_PIN_HIGH);        //goes ahead after echo is low;
- Timer_A_stop(TIMER_A1_BASE);
- volatile uint16_t time;
- time = Timer_A_getCounterValue(TIMER_A1_BASE);
- //Will display the distance
- int distance = time / 58;
-showChar('0' + distance%10,pos6);
- distance = distance/10;
- showChar('0' + distance%10,pos5);
- distance = distance/10;
- showChar('0' + distance%10,pos4);
- distance = distance/10;
- showChar('0' + distance%10,pos3);
- distance = distance/10;
- showChar('0' + distance%10,pos2);
- distance = distance/10;
- showChar('0' + distance%10,pos1);
- distance = 0;
- //rear_LCDS(time);
- time = 0;
- __delay_cycles(16000);
+unsigned int front_sensor()
+{
+    //GPIO_setAsOutputPin(GPIO_PORT_P5,GPIO_PIN1); //Will need to change the pins to be the ones we used 1.7 and 5.1
+    GPIO_setAsOutputPin(GPIO_PORT_P1, GPIO_PIN7);
+    //GPIO_setOutputLowOnPin(GPIO_PORT_P5,GPIO_PIN1); //First echo Rear
+    GPIO_setOutputLowOnPin(GPIO_PORT_P1, GPIO_PIN7); //Second echo Front
+    //GPIO_setAsInputPin(GPIO_PORT_P5,GPIO_PIN1);
+    GPIO_setAsInputPin(GPIO_PORT_P1, GPIO_PIN7);
+
+    GPIO_setOutputHighOnPin(GPIO_PORT_P2, GPIO_PIN5); //This is trigger so we need to start the trigger
+    __delay_cycles(16);
+    GPIO_setOutputLowOnPin(GPIO_PORT_P2, GPIO_PIN5);
+
+    //We clear the timer before the start
+    Timer_A_clear(TIMER_A1_BASE);
+    //displayScrollText("HELLO123213");
+    while (GPIO_getInputPinValue(GPIO_PORT_P1, GPIO_PIN7) == GPIO_INPUT_PIN_LOW)
+        ;        //goes ahead after echo is low for front
+    Timer_A_startCounter(TIMER_A1_BASE, TIMER_A_CONTINUOUS_MODE);
+    //start timer
+    //displayScrollText("DRFEFE");
+    while (GPIO_getInputPinValue(GPIO_PORT_P1, GPIO_PIN7) == GPIO_INPUT_PIN_HIGH)
+        ;
+    //displayScrollText("WHY");//goes ahead after echo is low;
+    Timer_A_stop(TIMER_A1_BASE);
+    unsigned int time;
+    time = Timer_A_getCounterValue(TIMER_A1_BASE) / 58;
+    //Will display the distance
+// int distance = time / 58;
+//showChar('0' + distance%10,pos6);
+// distance = distance/10;
+// showChar('0' + distance%10,pos5);
+// distance = distance/10;
+// showChar('0' + distance%10,pos4);
+// distance = distance/10;
+// showChar('0' + distance%10,pos3);
+// distance = distance/10;
+// showChar('0' + distance%10,pos2);
+// distance = distance/10;
+// showChar('0' + distance%10,pos1);
+// distance = 0;
+// rear_LCDS(time);
+// time = 0;
+    __delay_cycles(50000);
+
+    return time;
+}
+
+unsigned int back_sensor()
+{
+    GPIO_setAsOutputPin(GPIO_PORT_P5, GPIO_PIN1); //Will need to change the pins to be the ones we used 1.7 and 5.1
+    GPIO_setAsOutputPin(GPIO_PORT_P1, GPIO_PIN7);
+    GPIO_setOutputLowOnPin(GPIO_PORT_P5, GPIO_PIN1); //First echo Rear
+    GPIO_setOutputLowOnPin(GPIO_PORT_P1, GPIO_PIN7); //Second echo Front
+    GPIO_setAsInputPin(GPIO_PORT_P5, GPIO_PIN1);
+    GPIO_setAsInputPin(GPIO_PORT_P1, GPIO_PIN7);
+
+    GPIO_setOutputHighOnPin(GPIO_PORT_P2, GPIO_PIN5); //This is trigger so we need to start the trigger
+    __delay_cycles(16);
+    GPIO_setOutputLowOnPin(GPIO_PORT_P2, GPIO_PIN5);
+
+//  GPIO_setOutputLowOnPin(GPIO_PORT_P5, GPIO_PIN1);
+    Timer_A_clear(TIMER_A1_BASE);
+    long timeout = 0;
+// displayScrollText("HELLO123213");
+    while (GPIO_getInputPinValue(GPIO_PORT_P5, GPIO_PIN1) == GPIO_INPUT_PIN_LOW
+            && timeout < 30000)
+    {        //goes ahead after echo is low
+        timeout++;
+    }
+//  displayScrollText("HELLO");
+    Timer_A_startCounter(TIMER_A1_BASE, TIMER_A_CONTINUOUS_MODE);  //start timer
+    timeout = 0;
+    while (GPIO_getInputPinValue(GPIO_PORT_P5, GPIO_PIN1) == GPIO_INPUT_PIN_HIGH
+            && timeout < 30000)
+    {        //goes ahead after echo is low
+        timeout++;
+    }
+// Timer_A_startCounter(TIMER_A1_BASE,TIMER_A_CONTINUOUS_MODE);     // This is not supposed to be here
+    Timer_A_stop(TIMER_A1_BASE);
+    unsigned int time;
+    time = Timer_A_getCounterValue(TIMER_A1_BASE) / 58;
+    __delay_cycles(16000);
+    return time;
+
+    // timeback
+    //timefront
+    // timeback = timeback*0.35 + 0.65*time
+    //timefront =// same thing
+}
+
+//void init_inecho(){
+//  GPIO_setAsInputPin(GPIO_PORT_P5, GPIO_PIN0);
+//  GPIO_setAsInputPin(GPIO_PORT_P5, GPIO_PIN2);
+//  Timer_A_outputPWM(TIMER_A0_BASE, &param);
+//}
+
+void run_sensor()
+{
+    while (1)
+    {
+//        fV[index] = front_sensor();
+
+        bV[index] = back_sensor();
+
+        fD = (fV[index] + 4 * fV[(index + 2) % 3] + fV[(index + 1) % 3]) / 6;
+        bD = (bV[index] + 4 * bV[(index + 2) % 3] + bV[(index + 1) % 3]) / 6;
+        index++;
+        index = index % 3;
+        displayIntLCD(bD);
+        turn_LED(bD);
+        if (fD <= beep_t[0])
+        {
+            beep(1);
+//            pulse_LED();
+        }
+        else if (fD > beep_t[0] && fD <= beep_t[1])
+        {
+            beep(0);
+//            pulse_LED();
+        }
+//        __delay_cycles(16000);
+    }
+    return;
+}
+
+void displayIntLCD(unsigned int numDisp)
+{
+    char charDisp[3];
+    charDisp[0] = numDisp % 10;
+    numDisp /= 10;
+    charDisp[1] = numDisp % 10;
+    numDisp /= 10;
+    charDisp[2] = numDisp % 10;
+    numDisp /= 10;
+
+    showChar('0' + (charDisp[0]), pos6);
+    showChar('0' + (charDisp[1]), pos5);
+    showChar('0' + (charDisp[2]), pos4);
 
 }
 
-void back_sensor(){
-  GPIO_setAsOutputPin(GPIO_PORT_P5,GPIO_PIN0);
-  GPIO_setAsOutputPin(GPIO_PORT_P5,GPIO_PIN2);
-  GPIO_setOutputLowOnPin(GPIO_PORT_P5,GPIO_PIN0);
-  GPIO_setOutputLowOnPin(GPIO_PORT_P5,GPIO_PIN2);
-  GPIO_setAsInputPin(GPIO_PORT_P5,GPIO_PIN0);
-  GPIO_setAsInputPin(GPIO_PORT_P5,GPIO_PIN2);
-  GPIO_setOutputHighOnPin(GPIO_PORT_P1, GPIO_PIN6);
- __delay_cycles(1);
-  GPIO_setOutputLowOnPin(GPIO_PORT_P1, GPIO_PIN6);
- Timer_A_clear(TIMER_A1_BASE);
-  while(GPIO_getInputPinValue(GPIO_PORT_P5,GPIO_PIN0) == GPIO_INPUT_PIN_LOW){        //goes ahead after echo is low
-    ; }
- Timer_A_startCounter(TIMER_A1_BASE,TIMER_A_CONTINUOUS_MODE);        //start timer
- while(GPIO_getInputPinValue(GPIO_PORT_P5,GPIO_PIN0) == GPIO_INPUT_PIN_HIGH){        //goes ahead after echo is low
-    ; }
- Timer_A_startCounter(TIMER_A1_BASE,TIMER_A_CONTINUOUS_MODE);     // This is not supposed to be here
- Timer_A_stop(TIMER_A1_BASE);
- volatile uint16_t time;
- time = Timer_A_getCounterValue(TIMER_A1_BASE);
-// time = test;
- time = time / 58;
- int distance = time;
+void Init_Timer(void)
+{
+    timer_param.clockSource = TIMER_A_CLOCKSOURCE_SMCLK;
+    timer_param.clockSourceDivider = TIMER_A_CLOCKSOURCE_DIVIDER_1;
+    timer_param.timerInterruptEnable_TAIE = TIMER_A_TAIE_INTERRUPT_DISABLE;
+    timer_param.timerClear = TIMER_A_DO_CLEAR;
+    //startTimer = true;
+    Timer_A_initContinuousMode(TIMER_A1_BASE, &timer_param);
 }
 
-void init_inecho(){
-  GPIO_setAsInputPin(GPIO_PORT_P5, GPIO_PIN0);
-  GPIO_setAsInputPin(GPIO_PORT_P5, GPIO_PIN2);
-  Timer_A_outputPWM(TIMER_A0_BASE, &param);
-}
-
-void run_sensors(){
-  int i = 0;
- for(i = 0; i<10; i++)
- front_sensor();
- __delay_cycles(20);
- for(i = 0; i<10; i++)
- back_sensor();
-}
-
-void Init_Timer(void){
-  timer_param.clockSource = TIMER_A_CLOCKSOURCE_SMCLK;
-  timer_param.clockSourceDivider = TIMER_A_CLOCKSOURCE_DIVIDER_1;
-  timer_param.timerInterruptEnable_TAIE = TIMER_A_TAIE_INTERRUPT_DISABLE;
-  timer_param.timerClear = TIMER_A_DO_CLEAR;
-  //startTimer = true;
-  Timer_A_initContinuousMode(TIMER_A1_BASE, &timer_param);
-}
-
-void Init_interrupt(){
+void Init_interrupt()
+{
     GPIO_setAsInputPinWithPullUpResistor(SW1_PORT, SW1_PIN);
     GPIO_enableInterrupt(SW1_PORT, SW1_PIN);
     GPIO_selectInterruptEdge(SW1_PORT, SW1_PIN, GPIO_HIGH_TO_LOW_TRANSITION);
@@ -275,10 +366,98 @@ void Init_interrupt(){
 
 void pulse_LED()
 {
-    GPIO_setOutputHighOnPin(GPIO_PORT_P2, GPIO_PIN5);
+    GPIO_setOutputHighOnPin(YELLOW_PORT, YELLOW_PIN);
     __delay_cycles(20000);
-    GPIO_setOutputLowOnPin(GPIO_PORT_P2, GPIO_PIN5);
+    GPIO_setOutputLowOnPin(YELLOW_PORT, YELLOW_PIN);
     __delay_cycles(20000);
+}
+
+void turn_LED(unsigned int distance)
+{
+    if (distance <= LED_t[0])
+    {
+        //Turn off everything but RED
+        GPIO_setOutputLowOnPin(GREEN_PORT, GREEN_PIN);
+        GPIO_setOutputLowOnPin(ORANGE_PORT, ORANGE_PIN);
+        GPIO_setOutputLowOnPin(YELLOW_PORT, YELLOW_PIN);
+        GPIO_setOutputHighOnPin(RED_PORT, RED_PIN);
+    }
+    else if (distance <= LED_t[1] && distance > LED_t[0])
+    {
+        //Turn off everything but YELLOW
+        GPIO_setOutputLowOnPin(GREEN_PORT, GREEN_PIN);
+        GPIO_setOutputLowOnPin(ORANGE_PORT, ORANGE_PIN);
+        GPIO_setOutputLowOnPin(RED_PORT, RED_PIN);
+        GPIO_setOutputHighOnPin(YELLOW_PORT, YELLOW_PIN);
+    }
+    else if (distance <= LED_t[2] && distance > LED_t[1])
+    {
+        //Turn off everything but orange
+        GPIO_setOutputLowOnPin(GREEN_PORT, GREEN_PIN);
+        GPIO_setOutputLowOnPin(YELLOW_PORT, YELLOW_PIN);
+        GPIO_setOutputLowOnPin(RED_PORT, RED_PIN);
+        GPIO_setOutputHighOnPin(ORANGE_PORT, ORANGE_PIN);
+    }
+    else
+    {
+        //Turn green on and turn off everything
+        GPIO_setOutputLowOnPin(ORANGE_PORT, ORANGE_PIN);
+        GPIO_setOutputLowOnPin(YELLOW_PORT, YELLOW_PIN);
+        GPIO_setOutputLowOnPin(RED_PORT, RED_PIN);
+        GPIO_setOutputHighOnPin(GREEN_PORT, GREEN_PIN);
+    }
+}
+
+void beep(int state)
+{
+    int i = 0;
+
+    if (state == 1)
+    {
+        for (i = 0; i < 100; i++)
+        {
+            GPIO_setOutputHighOnPin(AUDIO_PORT, AUDIO_PIN);
+            __delay_cycles(500);
+            GPIO_setOutputLowOnPin(AUDIO_PORT, AUDIO_PIN);
+        }
+        __delay_cycles(50000);
+        for (i = 0; i < 100; i++)
+        {
+            GPIO_setOutputHighOnPin(AUDIO_PORT, AUDIO_PIN);
+            __delay_cycles(500);
+            GPIO_setOutputLowOnPin(AUDIO_PORT, AUDIO_PIN);
+        }
+        __delay_cycles(50000);
+        for (i = 0; i < 100; i++)
+        {
+            GPIO_setOutputHighOnPin(AUDIO_PORT, AUDIO_PIN);
+            __delay_cycles(500);
+            GPIO_setOutputLowOnPin(AUDIO_PORT, AUDIO_PIN);
+        }
+        __delay_cycles(50000);
+        for (i = 0; i < 100; i++)
+        {
+            GPIO_setOutputHighOnPin(AUDIO_PORT, AUDIO_PIN);
+            __delay_cycles(500);
+            GPIO_setOutputLowOnPin(AUDIO_PORT, AUDIO_PIN);
+        }
+    }
+    else
+    {
+        for (i = 0; i < 100; i++)
+        {
+            GPIO_setOutputHighOnPin(AUDIO_PORT, AUDIO_PIN);
+            __delay_cycles(1000);
+            GPIO_setOutputLowOnPin(AUDIO_PORT, AUDIO_PIN);
+        }
+        __delay_cycles(100000);
+        for (i = 0; i < 100; i++)
+        {
+            GPIO_setOutputHighOnPin(AUDIO_PORT, AUDIO_PIN);
+            __delay_cycles(1000);
+            GPIO_setOutputLowOnPin(AUDIO_PORT, AUDIO_PIN);
+        }
+    }
 }
 
 uint16_t getNextKeypadInputPin(uint16_t prev_pin)
@@ -341,27 +520,62 @@ int fetch_data()
 void Init_GPIO(void)
 {
     // Set all GPIO pins to output low to prevent floating input and reduce power consumption
-    GPIO_setOutputLowOnPin(GPIO_PORT_P1, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
-    GPIO_setOutputLowOnPin(GPIO_PORT_P2, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
-    GPIO_setOutputLowOnPin(GPIO_PORT_P3, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
-    GPIO_setOutputLowOnPin(GPIO_PORT_P4, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
-    GPIO_setOutputLowOnPin(GPIO_PORT_P5, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
-    GPIO_setOutputLowOnPin(GPIO_PORT_P6, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
-    GPIO_setOutputLowOnPin(GPIO_PORT_P7, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
-    GPIO_setOutputLowOnPin(GPIO_PORT_P8, GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN4 | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
+    GPIO_setOutputLowOnPin(
+            GPIO_PORT_P1,
+            GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4
+                    | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
+    GPIO_setOutputLowOnPin(
+            GPIO_PORT_P2,
+            GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4
+                    | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
+    GPIO_setOutputLowOnPin(
+            GPIO_PORT_P3,
+            GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4
+                    | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
+    GPIO_setOutputLowOnPin(
+            GPIO_PORT_P4,
+            GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4
+                    | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
+    GPIO_setOutputLowOnPin(
+            GPIO_PORT_P5,
+            GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4
+                    | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
+    GPIO_setOutputLowOnPin(
+            GPIO_PORT_P6,
+            GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4
+                    | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
+    GPIO_setOutputLowOnPin(
+            GPIO_PORT_P7,
+            GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN3 | GPIO_PIN4
+                    | GPIO_PIN5 | GPIO_PIN6 | GPIO_PIN7);
+    GPIO_setOutputLowOnPin(
+            GPIO_PORT_P8,
+            GPIO_PIN0 | GPIO_PIN1 | GPIO_PIN2 | GPIO_PIN4 | GPIO_PIN5
+                    | GPIO_PIN6 | GPIO_PIN7);
 
-    GPIO_setAsOutputPin(ROW_PORT, ROW_PIN_1 | ROW_PIN_2 | ROW_PIN_3 | ROW_PIN_4);
+    GPIO_setAsOutputPin(ROW_PORT,
+                        ROW_PIN_1 | ROW_PIN_2 | ROW_PIN_3 | ROW_PIN_4);
     GPIO_setAsOutputPin(GPIO_PORT_P2, GPIO_PIN5);
+    GPIO_setAsInputPin(GPIO_PORT_P5, GPIO_PIN1);
     GPIO_setAsInputPin(GPIO_PORT_P1, GPIO_PIN7);
-    GPIO_setAsInputPinWithPullDownResistor(COL_PORT, COL_PIN_1 | COL_PIN_2 | COL_PIN_3);
+//    GPIO_setAsOutputPin(GPIO_PORT_P1, GPIO_PIN7);
+    GPIO_setAsInputPinWithPullDownResistor(COL_PORT,
+                                           COL_PIN_1 | COL_PIN_2 | COL_PIN_3);
 
     //Set LaunchPad switches as inputs - they are active low, meaning '1' until pressed
     GPIO_setAsInputPinWithPullUpResistor(SW1_PORT, SW1_PIN);
     GPIO_setAsInputPinWithPullUpResistor(SW2_PORT, SW2_PIN);
 
-    //Set LED1 and LED2 as outputs
+    //Set LEDS as outputs
+    GPIO_setAsOutputPin(GREEN_PORT, GREEN_PIN);
+    GPIO_setAsOutputPin(YELLOW_PORT, YELLOW_PIN);
+    GPIO_setAsOutputPin(ORANGE_PORT, ORANGE_PIN);
+    GPIO_setAsOutputPin(RED_PORT, RED_PIN);
+
+    //SET AUDIO
+    GPIO_setAsOutputPin(AUDIO_PORT, AUDIO_PIN);
     //GPIO_setAsOutputPin(LED1_PORT, LED1_PIN); //Comment if using UART
-    GPIO_setAsOutputPin(LED2_PORT, LED2_PIN);
+//    GPIO_setAsOutputPin(LED2_PORT, LED2_PIN);
 }
 
 /* Clock System Initialization */
@@ -384,7 +598,9 @@ void Init_Clock(void)
      * sample the ADC once per second.
      */
     //Set P4.1 and P4.2 as Primary Module Function Input, XT_LF
-    GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P4, GPIO_PIN1 + GPIO_PIN2, GPIO_PRIMARY_MODULE_FUNCTION);
+    GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P4,
+                                               GPIO_PIN1 + GPIO_PIN2,
+                                               GPIO_PRIMARY_MODULE_FUNCTION);
 
     // Set external clock frequency to 32.768 KHz
     CS_setExternalClockSource(32768);
@@ -411,8 +627,10 @@ void Init_UART(void)
 
     //Configure UART pins, which maps them to a COM port over the USB cable
     //Set P1.0 and P1.1 as Secondary Module Function Input.
-    GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P1, GPIO_PIN1, GPIO_PRIMARY_MODULE_FUNCTION);
-    GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P1, GPIO_PIN0, GPIO_PRIMARY_MODULE_FUNCTION);
+    GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P1, GPIO_PIN1,
+                                               GPIO_PRIMARY_MODULE_FUNCTION);
+    GPIO_setAsPeripheralModuleFunctionOutputPin(GPIO_PORT_P1, GPIO_PIN0,
+                                                GPIO_PRIMARY_MODULE_FUNCTION);
 
     /*
      * UART Configuration Parameter. These are the configuration parameters to
@@ -423,7 +641,7 @@ void Init_UART(void)
 
     //SMCLK = 1MHz, Baudrate = 9600
     //UCBRx = 6, UCBRFx = 8, UCBRSx = 17, UCOS16 = 1
-    EUSCI_A_UART_initParam param = {0};
+    EUSCI_A_UART_initParam param = { 0 };
     param.selectClockSource = EUSCI_A_UART_CLOCKSOURCE_SMCLK;
     param.clockPrescalar = 6;
     param.firstModReg = 8;
@@ -451,13 +669,15 @@ void Init_UART(void)
 #pragma vector = USCI_A0_VECTOR
 __interrupt void EUSCIA0_ISR(void)
 {
-    uint8_t RxStatus = EUSCI_A_UART_getInterruptStatus(EUSCI_A0_BASE, EUSCI_A_UART_RECEIVE_INTERRUPT_FLAG);
+    uint8_t RxStatus = EUSCI_A_UART_getInterruptStatus(
+            EUSCI_A0_BASE, EUSCI_A_UART_RECEIVE_INTERRUPT_FLAG);
 
     EUSCI_A_UART_clearInterrupt(EUSCI_A0_BASE, RxStatus);
 
     if (RxStatus)
     {
-        EUSCI_A_UART_transmitData(EUSCI_A0_BASE, EUSCI_A_UART_receiveData(EUSCI_A0_BASE));
+        EUSCI_A_UART_transmitData(EUSCI_A0_BASE,
+                                  EUSCI_A_UART_receiveData(EUSCI_A0_BASE));
     }
 }
 
@@ -481,7 +701,8 @@ void Init_PWM(void)
     param.dutyCycle = HIGH_COUNT; //Defined in main.h
 
     //PWM_PORT PWM_PIN (defined in main.h) as PWM output
-    GPIO_setAsPeripheralModuleFunctionOutputPin(PWM_PORT, PWM_PIN, GPIO_PRIMARY_MODULE_FUNCTION);
+    GPIO_setAsPeripheralModuleFunctionOutputPin(PWM_PORT, PWM_PIN,
+                                                GPIO_PRIMARY_MODULE_FUNCTION);
 }
 
 void Init_ADC(void)
@@ -493,7 +714,8 @@ void Init_ADC(void)
      */
 
     //Set ADC_IN to input direction
-    GPIO_setAsPeripheralModuleFunctionInputPin(ADC_IN_PORT, ADC_IN_PIN, GPIO_PRIMARY_MODULE_FUNCTION);
+    GPIO_setAsPeripheralModuleFunctionInputPin(ADC_IN_PORT, ADC_IN_PIN,
+                                               GPIO_PRIMARY_MODULE_FUNCTION);
 
     //Initialize the ADC Module
     /*
@@ -503,7 +725,7 @@ void Init_ADC(void)
      * Use default clock divider of 1
      */
     ADC_init(ADC_BASE,
-             ADC_SAMPLEHOLDSOURCE_SC,
+    ADC_SAMPLEHOLDSOURCE_SC,
              ADC_CLOCKSOURCE_ADCOSC,
              ADC_CLOCKDIVIDER_1);
 
@@ -515,7 +737,7 @@ void Init_ADC(void)
      * Do not enable Multiple Sampling
      */
     ADC_setupSamplingTimer(ADC_BASE,
-                           ADC_CYCLEHOLD_16_CYCLES,
+    ADC_CYCLEHOLD_16_CYCLES,
                            ADC_MULTIPLESAMPLESDISABLE);
 
     //Configure Memory Buffer
@@ -526,23 +748,24 @@ void Init_ADC(void)
      * Use negative reference of AVss
      */
     ADC_configureMemory(ADC_BASE,
-                        ADC_IN_CHANNEL,
+    ADC_IN_CHANNEL,
                         ADC_VREFPOS_AVCC,
                         ADC_VREFNEG_AVSS);
 
     ADC_clearInterrupt(ADC_BASE,
-                       ADC_COMPLETED_INTERRUPT);
+    ADC_COMPLETED_INTERRUPT);
 
     //Enable Memory Buffer interrupt
     ADC_enableInterrupt(ADC_BASE,
-                        ADC_COMPLETED_INTERRUPT);
+    ADC_COMPLETED_INTERRUPT);
 }
 
 //ADC interrupt service routine
 #pragma vector = ADC_VECTOR
 __interrupt void ADC_ISR(void)
 {
-    uint8_t ADCStatus = ADC_getInterruptStatus(ADC_BASE, ADC_COMPLETED_INTERRUPT_FLAG);
+    uint8_t ADCStatus = ADC_getInterruptStatus(ADC_BASE,
+                                               ADC_COMPLETED_INTERRUPT_FLAG);
 
     ADC_clearInterrupt(ADC_BASE, ADCStatus);
 
@@ -552,3 +775,9 @@ __interrupt void ADC_ISR(void)
         ADCResult = ADC_getResults(ADC_BASE);
     }
 }
+
+int start_keypad()
+{
+
+}
+
