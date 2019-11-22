@@ -26,6 +26,23 @@
 #define ADC_IN_PIN      GPIO_PIN1
 #define ADC_IN_CHANNEL  ADC_INPUT_A9
 
+//Defining LEDS:
+#define GREEN_PIN  GPIO_PIN1
+#define GREEN_PORT GPIO_PORT_P1
+
+#define YELLOW_PIN  GPIO_PIN0
+#define YELLOW_PORT GPIO_PORT_P1
+
+#define ORANGE_PIN  GPIO_PIN7
+#define ORANGE_PORT GPIO_PORT_P2
+
+#define RED_PIN  GPIO_PIN0
+#define RED_PORT GPIO_PORT_P8
+
+#define AUDIO_PORT GPIO_PORT_P8
+#define AUDIO_PIN   GPIO_PIN1
+
+
 #define ROW_PORT GPIO_PORT_P1
 #define ROW_PIN_1 GPIO_PIN3
 #define ROW_PIN_2 GPIO_PIN4
@@ -57,9 +74,17 @@ void Init_Clock(void);
 void Init_UART(void);
 void Init_PWM(void);
 void Init_ADC(void);
+void Init_Timer(void);
 uint16_t getNextKeypadInputPin(uint16_t prev_pin);
 uint16_t getNextKeypadInputPort(uint16_t prev_port);
 int getKeypadValue(uint16_t row_pin, uint16_t col_pin);
+unsigned int front_sensor();
+unsigned int back_sensor();
+void run_sensor();
+void beep(int state);
+void displayIntLCD(unsigned int numDisp);
+
+int start_keypad();
 
 int update_calibrate_value(int input, int value);
 void calibrate(long value);
