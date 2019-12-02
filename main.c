@@ -8,6 +8,14 @@
 #include <msp430fr4133.h>
 #include "driverlib/timer_a.h"
 #include <stdio.h>
+<<<<<<< HEAD
+=======
+
+/*
+ * This project contains some code samples that may be useful.
+ *
+ */
+>>>>>>> 14fd5e62cb80b0301b9815920bb55f707d58e9c7
 
 char ADCState = 0;                                 //Busy state of the ADC
 int16_t ADCResult = 0;                   //Storage for the ADC conversion result
